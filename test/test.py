@@ -39,8 +39,10 @@ Usage:
 Exit status: 0 if all checks pass, 1 otherwise (CI-friendly).
 """
 import argparse
+import http.server
 import json
 import os
+import pathlib
 import socket
 import subprocess
 import sys
@@ -48,7 +50,6 @@ import tempfile
 import threading
 import time
 
-import http.server
 import httpx
 
 
@@ -151,7 +152,7 @@ def parse_args():
         description="Smoke test for the OpenAI-compatible proxy")
     p.add_argument(
         "--proxy",
-        default=os.path.normpath(os.path.join(here, "..", "llm", "openai-proxy")),
+        default=os.path.normpath(os.path.join(here, "..", "openai-proxy")),
         help="path to the proxy script under test")
     p.add_argument("--backend-port", type=int, default=0,
                    help="fixed port for the fake backend (default: ephemeral)")
@@ -169,8 +170,7 @@ def main():
 
     tmpdir = tempfile.TemporaryDirectory(prefix="openai-proxy-smoke-")
     config = os.path.join(tmpdir.name, "test-proxy.yaml")
-    with open(config, "w") as f:
-        f.write(f"""listen_host: "127.0.0.1"
+    pathlib.Path(config).write_text(f"""listen_host: "127.0.0.1"
 listen_port: {proxy_port}
 backends:
   be1:
@@ -195,7 +195,7 @@ client_keys:
                 [sys.executable, args.proxy, config],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         except OSError as e:
-            raise RuntimeError(f"could not start proxy {args.proxy!r}: {e}")
+            raise RuntimeError(f"could not start proxy {args.proxy!r}: {e}") from e
 
         client = httpx.Client(timeout=10)
 
@@ -357,7 +357,7 @@ client_keys:
         check("14 oversized content-length -> 413", " 413 " in status, status)
 
         client.close()
-    except Exception as e:
+    except Exception as e:  # ruff: ignore[blind-except]
         check("no unexpected error", False, repr(e))
     finally:
         if proxy is not None:
