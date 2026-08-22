@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
@@ -139,7 +140,10 @@ def _fresh_backend_log(backend_log: list[dict]) -> None:
 
 
 @pytest.fixture(scope="session")
-def backend_port(backend_log: list[dict], request: pytest.FixtureRequest) -> int:
+def backend_port(
+    backend_log: list[dict],
+    request: pytest.FixtureRequest,
+) -> Iterator[int]:
     """Start the fake backend and yield the port it listens on."""
     port = request.config.getoption("--backend-port") or free_port()
     server = make_backend(port, backend_log)
@@ -155,7 +159,7 @@ def proxy_port(
     backend_port: int,
     tmp_path_factory: pytest.TempPathFactory,
     request: pytest.FixtureRequest,
-) -> int:
+) -> Iterator[int]:
     """Start the proxy under test and yield the port it listens on."""
     proxy = request.config.getoption("--proxy")
     port = request.config.getoption("--proxy-port") or free_port()
@@ -219,7 +223,7 @@ def proxy_base_url(proxy_port: int) -> str:
 
 
 @pytest.fixture
-def client(proxy_base_url: str):
+def client(proxy_base_url: str) -> Iterator[httpx.Client]:
     """A fresh httpx client (per test) already pointed at the proxy."""
     with httpx.Client(base_url=proxy_base_url, timeout=10,
                       trust_env=False) as client:

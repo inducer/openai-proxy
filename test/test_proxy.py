@@ -40,10 +40,16 @@ Extra options (registered in test/conftest.py):
 
 If any test fails, the proxy's own log is printed after the summary.
 """
+from __future__ import annotations
+
 import socket
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    import httpx
 
 # Must match the keys configured for the proxy in conftest.py.
 CLIENT_KEY = "test-client-key"
@@ -61,13 +67,15 @@ def raw_status(port: int, raw_request: bytes) -> str:
     return data.split(b"\r\n", 1)[0].decode()
 
 
-def test_unauthenticated_models_rejected(client, backend_log):
+def test_unauthenticated_models_rejected(
+    client: httpx.Client, backend_log: list[dict],
+) -> None:
     r = client.get("/v1/models")
     assert r.status_code == 401, r.text
     assert not backend_log, backend_log
 
 
-def test_wrong_key_rejected(client, backend_log):
+def test_wrong_key_rejected(client: httpx.Client, backend_log: list[dict]) -> None:
     r = client.get("/v1/models",
                    headers={"Authorization": "Bearer wrong-key"})
     assert r.status_code == 403, r.text
@@ -75,12 +83,12 @@ def test_wrong_key_rejected(client, backend_log):
 
 
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-def test_docs_and_openapi_not_served(client, path):
+def test_docs_and_openapi_not_served(client: httpx.Client, path: str) -> None:
     r = client.get(path)
     assert r.status_code == 404, r.status_code
 
 
-def test_bearer_without_key_rejected(proxy_port):
+def test_bearer_without_key_rejected(proxy_port: int) -> None:
     # Sent via raw socket: the httpx client refuses to send such a header,
     # but a real attacker is not limited by that.
     status = raw_status(proxy_port, (
@@ -91,7 +99,7 @@ def test_bearer_without_key_rejected(proxy_port):
     assert " 401 " in status, status
 
 
-def test_non_ascii_key_rejected(proxy_port):
+def test_non_ascii_key_rejected(proxy_port: int) -> None:
     status = raw_status(proxy_port, (
         b"GET /v1/models HTTP/1.1\r\n"
         b"Host: 127.0.0.1\r\n"
@@ -100,13 +108,17 @@ def test_non_ascii_key_rejected(proxy_port):
     assert " 403 " in status, status
 
 
-def test_unauthenticated_completion_rejected(client, backend_log):
+def test_unauthenticated_completion_rejected(
+    client: httpx.Client, backend_log: list[dict],
+) -> None:
     r = client.post("/v1/chat/completions", json={"model": "model-a"})
     assert r.status_code == 401, r.text
     assert not backend_log, backend_log
 
 
-def test_authenticated_completion_passthrough(client, backend_log):
+def test_authenticated_completion_passthrough(
+    client: httpx.Client, backend_log: list[dict],
+) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={
@@ -129,7 +141,7 @@ def test_authenticated_completion_passthrough(client, backend_log):
     assert entry["pauth"] is None, entry
 
 
-def test_streaming_completion(client):
+def test_streaming_completion(client: httpx.Client) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={"Authorization": f"Bearer {CLIENT_KEY}"},
@@ -140,7 +152,7 @@ def test_streaming_completion(client):
 
 
 @pytest.mark.parametrize("stream", [False, True])
-def test_backend_error_status_preserved(client, stream):
+def test_backend_error_status_preserved(client: httpx.Client, stream: bool) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={"Authorization": f"Bearer {CLIENT_KEY}"},
@@ -150,7 +162,7 @@ def test_backend_error_status_preserved(client, stream):
     assert "not found" in r.text, r.text
 
 
-def test_unknown_model_rejected(client, backend_log):
+def test_unknown_model_rejected(client: httpx.Client, backend_log: list[dict]) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={"Authorization": f"Bearer {CLIENT_KEY}"},
@@ -161,7 +173,7 @@ def test_unknown_model_rejected(client, backend_log):
     assert not backend_log, backend_log
 
 
-def test_non_object_json_body_rejected(client):
+def test_non_object_json_body_rejected(client: httpx.Client) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={"Authorization": f"Bearer {CLIENT_KEY}"},
@@ -170,7 +182,9 @@ def test_non_object_json_body_rejected(client):
     assert r.status_code == 400, f"{r.status_code} {r.text}"
 
 
-def test_disallowed_model_rejected(client, backend_log):
+def test_disallowed_model_rejected(
+    client: httpx.Client, backend_log: list[dict],
+) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={"Authorization": f"Bearer {CLIENT_KEY}"},
@@ -180,14 +194,14 @@ def test_disallowed_model_rejected(client, backend_log):
     assert not backend_log, backend_log
 
 
-def test_model_list_filtered_per_client(client):
+def test_model_list_filtered_per_client(client: httpx.Client) -> None:
     r = client.get(
         "/v1/models", headers={"Authorization": f"Bearer {CLIENT_KEY}"})
     ids = [m.get("id") for m in r.json().get("data", [])]
     assert ids == ["model-a"], ids
 
 
-def test_oversized_content_length_rejected(proxy_port):
+def test_oversized_content_length_rejected(proxy_port: int) -> None:
     auth_line = f"Authorization: Bearer {CLIENT_KEY}\r\n".encode()
     status = raw_status(proxy_port, (
         b"POST /v1/chat/completions HTTP/1.1\r\n"
