@@ -68,14 +68,17 @@ def raw_status(port: int, raw_request: bytes) -> str:
 
 
 def test_unauthenticated_models_rejected(
-    client: httpx.Client, backend_log: list[dict],
+    client: httpx.Client, backend_log: list[dict[str, str | None]],
 ) -> None:
     r = client.get("/v1/models")
     assert r.status_code == 401, r.text
     assert not backend_log, backend_log
 
 
-def test_wrong_key_rejected(client: httpx.Client, backend_log: list[dict]) -> None:
+def test_wrong_key_rejected(
+    client: httpx.Client,
+    backend_log: list[dict[str, str | None]],
+) -> None:
     r = client.get("/v1/models",
                    headers={"Authorization": "Bearer wrong-key"})
     assert r.status_code == 403, r.text
@@ -109,7 +112,7 @@ def test_non_ascii_key_rejected(proxy_port: int) -> None:
 
 
 def test_unauthenticated_completion_rejected(
-    client: httpx.Client, backend_log: list[dict],
+    client: httpx.Client, backend_log: list[dict[str, str | None]],
 ) -> None:
     r = client.post("/v1/chat/completions", json={"model": "model-a"})
     assert r.status_code == 401, r.text
@@ -117,7 +120,7 @@ def test_unauthenticated_completion_rejected(
 
 
 def test_authenticated_completion_passthrough(
-    client: httpx.Client, backend_log: list[dict],
+    client: httpx.Client, backend_log: list[dict[str, str | None]],
 ) -> None:
     r = client.post(
         "/v1/chat/completions",
@@ -162,7 +165,9 @@ def test_backend_error_status_preserved(client: httpx.Client, stream: bool) -> N
     assert "not found" in r.text, r.text
 
 
-def test_unknown_model_rejected(client: httpx.Client, backend_log: list[dict]) -> None:
+def test_unknown_model_rejected(
+    client: httpx.Client, backend_log: list[dict[str, str | None]],
+) -> None:
     r = client.post(
         "/v1/chat/completions",
         headers={"Authorization": f"Bearer {CLIENT_KEY}"},
@@ -183,7 +188,7 @@ def test_non_object_json_body_rejected(client: httpx.Client) -> None:
 
 
 def test_disallowed_model_rejected(
-    client: httpx.Client, backend_log: list[dict],
+    client: httpx.Client, backend_log: list[dict[str, str | None]],
 ) -> None:
     r = client.post(
         "/v1/chat/completions",

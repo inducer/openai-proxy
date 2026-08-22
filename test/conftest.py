@@ -15,6 +15,7 @@ import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TypeAlias
 
 import httpx
 import pytest
@@ -22,6 +23,11 @@ import pytest
 # Must match the Authorization headers used in test_proxy.py.
 CLIENT_KEY = "test-client-key"
 UPSTREAM_KEY = "UPSTREAM_KEY"
+
+# One entry in ``backend_log``: method, path, and selected headers/body of
+# a single request seen by the fake backend (header values are None when
+# the header is absent).
+BackendLogEntry: TypeAlias = dict[str, str | None]
 
 _proxy_output = ""
 
@@ -64,14 +70,16 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
-def make_backend(port: int, log: list[dict]) -> http.server.ThreadingHTTPServer:
+def make_backend(
+    port: int, log: list[BackendLogEntry]
+) -> http.server.ThreadingHTTPServer:
     """A minimal stand-in for a vLLM server that logs every request it sees."""
 
     class Handler(http.server.BaseHTTPRequestHandler):
-        def log_message(self, *args):
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
-        def _send(self, code: int, obj: dict) -> None:
+        def _send(self, code: int, obj: dict[str, object]) -> None:
             body = json.dumps(obj).encode()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
@@ -129,19 +137,19 @@ def make_backend(port: int, log: list[dict]) -> http.server.ThreadingHTTPServer:
 
 
 @pytest.fixture(scope="session")
-def backend_log() -> list[dict]:
+def backend_log() -> list[BackendLogEntry]:
     """Requests observed by the fake backend, cleared before each test."""
     return []
 
 
 @pytest.fixture(autouse=True)
-def _fresh_backend_log(backend_log: list[dict]) -> None:
+def _fresh_backend_log(backend_log: list[BackendLogEntry]) -> None:
     backend_log.clear()
 
 
 @pytest.fixture(scope="session")
 def backend_port(
-    backend_log: list[dict],
+    backend_log: list[BackendLogEntry],
     request: pytest.FixtureRequest,
 ) -> Iterator[int]:
     """Start the fake backend and yield the port it listens on."""
@@ -161,7 +169,7 @@ def proxy_port(
     request: pytest.FixtureRequest,
 ) -> Iterator[int]:
     """Start the proxy under test and yield the port it listens on."""
-    proxy = request.config.getoption("--proxy")
+    proxy = str(request.config.getoption("--proxy"))
     port = request.config.getoption("--proxy-port") or free_port()
 
     config_file = tmp_path_factory.mktemp("openai-proxy-test") / "test-proxy.yaml"
