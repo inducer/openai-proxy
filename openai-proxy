@@ -28,7 +28,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 """
 llm-proxy: A lightweight OpenAI-compatible proxy for routing requests to
 (for example) multiple vLLM backends.
@@ -62,7 +61,7 @@ class Backend(BaseModel):
 
 
 class ClientConfig(BaseModel):
-    allowed_models: list[str]  | None = None
+    allowed_models: list[str] | None = None
     allowed_backends: list[str] | None = None
 
 

@@ -1,5 +1,6 @@
 [tool.ruff]
 preview = true
+include = ["**/*.py", "openai-proxy"]
 
 [tool.ruff.lint]
 extend-select = [
@@ -18,10 +19,22 @@ extend-select = [
     "TC",  # flake8-type-checking
     "UP",  # pyupgrade
     "W",   # pycodestyle
-   "FURB",
+    "FURB",
 ]
+ignore = [
+    "complex-structure",
+    ]
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
 inline-quotes = "double"
 multiline-quotes = "double"
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+pythonPlatform = "All"
+
+include = [
+    "**/*.py",
+    "openai-proxy"
+]
