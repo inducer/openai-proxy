@@ -447,6 +447,7 @@ def run(args: Args):
     for url in [
                 "/v1/chat/completions",
                 "/v1/completions",
+                "/v1/responses",
                 "/v1/embeddings",
             ]:
         add_proxy_route(app, url, config)
