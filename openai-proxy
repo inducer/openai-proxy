@@ -281,7 +281,7 @@ async def list_models_cached(config: ProxyConfig):
         config, ttl_store_name, None)
     if ttl_store is None:
         ttl_store = ValueWithTTL(ttl=60)
-        object.__setattr__(config, ttl_store_name, ttl_store)
+        object.__setattr__(config, ttl_store_name, ttl_store)  # ruff: ignore[unnecessary-dunder-call]
 
     result = ttl_store.get()
     if result is None:
